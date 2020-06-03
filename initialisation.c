@@ -64,6 +64,8 @@ void initAvion(Avion *a){
                         break;
             }
         }
+        a[i].distance = sqrt(pow(a[i].Arrivee.longitude - a[i].Depart.longitude,2) + pow(a[i].Arrivee.lattitude - a[i].Depart.lattitude,2));
+        a[i].fuelLvl = 100;
     }
 }
 

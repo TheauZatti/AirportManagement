@@ -26,6 +26,8 @@ typedef struct a{
     coordonnes Arrivee;
     int index;
     int status;
+    int distance;
+    int fuelLvl;
 }Avion;
 
 typedef struct p{

@@ -13,5 +13,6 @@ void initPistes(Piste*);
 void displayPistes(Piste*);
 void displayAvion(Avion*);
 void setTerminal();
+void computeFuel(Avion*);
 
 #endif //PROJET_FONCTIONS_H

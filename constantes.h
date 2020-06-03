@@ -12,6 +12,7 @@
 
 #define inprogress 0
 #define ended 1
+#define crashed 2
 
 //Constantes pour le gabarit de l'avion
 #define Petit 0
@@ -41,5 +42,7 @@
 #define Brest 7
 #define Metz 8
 #define LaRochelle 9
+#define nbAeroports 10
 
+#define ETIMEDOUT       110
 #endif //PROJET_CONSTANTES_H

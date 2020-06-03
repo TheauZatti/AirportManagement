@@ -4,7 +4,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdbool.h>
-
+#include <math.h>
 #include "fonctions.h"
 
 void displayPistes(Piste *pistes){
@@ -45,4 +45,18 @@ void setTerminal(){
     printf("\033c");
     printf("\033[0;0HNuméro de l'avion\033[0;23HGabarit\033[0;35HProvenance\033[0;50HArrivée\033[0;62HEtat de l'avion\033[0;82HType\033[0;95HPiste\033[0;105HKerozène\n\n");
 
+}
+
+void computeFuel(Avion *a){
+    a->fuelLvl -= ((10*80)/a->distance);
+    if(a->fuelLvl<50 && a->fuelLvl>20){
+        a->kerosene = Assure;
+        printf("\033[%d;105HAssuré",a->index+3);
+    }else if(a->fuelLvl<20){
+        a->kerosene = Urgent;
+        printf("\033[%d;105HUrgent",a->index+3);
+    }else if(a->fuelLvl <= 0){
+        a->status = crashed;
+        printf("\033[%d;105H            \033[%d;120Hcrashed            ",a->index+3,a->index+3);
+    }
 }
