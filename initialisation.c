@@ -11,12 +11,10 @@
 #include <string.h>
 #include <signal.h>
 #include <stdbool.h>
+#include <math.h>
 #include "fonctions.h"
 
-coordonnes coords[10] = {{"Paris",4800,200},{"Marseille",4300,500},{"Nice",4300,700},{"Lyon",4500,500},{"Toulouse",4300,100},{"Bordeaux",4400,-100},{"Strasbourg",4800,700},{"Brest",4800,-400},{"Metz",4900,600},{"La Rochelle",4600,-100}};
-
-
-void initAvion(Avion *a){
+void initAvion(Avion *a,coordonnes coords[]){
     //Initialisation des avions
     int depart,arrivee;
     for (int i = 0; i < nbMaxAvion; ++i) {
@@ -24,6 +22,7 @@ void initAvion(Avion *a){
         a[i].probTechnique = false;
         a[i].numero = rand()%10000;
         a[i].index = i;
+        a[i].incremented = false;
         a[i].status = inprogress;
         //Choix aléatoire du gabarits de l'avion
 
@@ -39,20 +38,16 @@ void initAvion(Avion *a){
         int y = rand()%2;
         switch (y){
             case 0: a[i].typeDemande = demandeAtterissage;
-                    do{
-                        depart = rand()%10;
-                    }while(depart == 0);
-                    a[i].Depart = coords[depart];
-                    a[i].Arrivee = coords[Paris];
                     break;
             case 1: a[i].typeDemande = demandeDecollage;
-                    a[i].Depart = coords[Paris];
-                    do{
-                        arrivee = rand()%10;
-                    }while(arrivee == 0);
-                    a[i].Arrivee = coords[arrivee];
                     break;
         }
+        depart = rand()%nbAeroports;
+        a[i].Depart = coords[depart];
+        do{
+            arrivee = rand()%nbAeroports;
+        }while(arrivee == depart);
+        a[i].Arrivee = coords[arrivee];
 
         //Choix aléatoire du type d'arrivée
 
@@ -69,12 +64,13 @@ void initAvion(Avion *a){
     }
 }
 
-void initPistes(Piste *pistes){
+void initPistes(Piste pistes[][nbAeroports]){
 
     //Initialisation des pistes
-
-    pistes[0].taille = 4000;
-    pistes[0].disponible = true;
-    pistes[1].taille = 2500;
-    pistes[1].disponible = true;
+    for (int i = 0; i < nbAeroports; ++i) {
+        pistes[0][i].taille = 4000;
+        pistes[0][i].disponible = true;
+        pistes[1][i].taille = 2500;
+        pistes[1][i].disponible = true;
+    }
 }

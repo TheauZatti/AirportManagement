@@ -8,8 +8,8 @@
 #include "structures.h"
 #include "constantes.h"
 
-void initAvion(Avion*);
-void initPistes(Piste*);
+void initAvion(Avion*, coordonnes[]);
+void initPistes(Piste[][nbAeroports]);
 void displayPistes(Piste*);
 void displayAvion(Avion*);
 void setTerminal();

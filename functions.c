@@ -11,31 +11,36 @@ void displayPistes(Piste *pistes){
 
     //Affichage des pistes
 
-    printf("\033[%d;0HP1 = %d , P2 = %d \n",nbMaxAvion+5,pistes[0].disponible,pistes[1].disponible);
-    fflush(stdout);
+   // printf("\033[%d;0HP1 = %d , P2 = %d \n",nbMaxAvion+5,pistes[0].disponible,pistes[1].disponible);
+    //fflush(stdout);
 }
 
 void displayAvion(Avion *a){
 
     //Affichage de l'avion
+    printf("\033[%d;0H%d\033[%d;35H%s\033[%d;50H%s",a->index+3,a->numero,a->index+3,a->Depart.nom,a->index+3,a->Arrivee.nom);
 
-    printf("\033[%d;0H%d\033[%d;35H%s\033[%d;50H%s\n",a->index+3,a->numero,a->index+3,a->Depart.nom,a->index+3,a->Arrivee.nom);
-
+    fflush(stdout);
     switch (a->gabarits){
         case Petit: printf("\033[%d;23HPetit",a->index+3);break;
         case Moyen: printf("\033[%d;23HMoyen",a->index+3);break;
         case Grand: printf("\033[%d;23HGrand",a->index+3);break;
+        default: printf("\033[%d;23Hdef",a->index+3);
     }
 
+    fflush(stdout);
     switch (a->typeDemande){
         case demandeAtterissage: printf("\033[%d;62HEn vol\033[%d;82HArrivée",a->index+3,a->index+3);break;
         case demandeDecollage: printf("\033[%d;62HHangar\033[%d;82HDépart",a->index+3,a->index+3);break;
+        default: printf("\033[%d;62Hdef",a->index+3);
     }
 
+    fflush(stdout);
     switch (a->kerosene){
         case Normal: printf("\033[%d;105HNormal",a->index+3);break;
         case Assure: printf("\033[%d;105HAssuré",a->index+3);break;
         case Urgent: printf("\033[%d;105HUrgent",a->index+3);break;
+        default: printf("\033[%d;105Hdef",a->index+3);
     }
 
     fflush(stdout);
@@ -52,10 +57,10 @@ void computeFuel(Avion *a){
     if(a->fuelLvl<50 && a->fuelLvl>20){
         a->kerosene = Assure;
         printf("\033[%d;105HAssuré",a->index+3);
-    }else if(a->fuelLvl<20){
+    }else if(a->fuelLvl<20 && a->fuelLvl > 0){
         a->kerosene = Urgent;
         printf("\033[%d;105HUrgent",a->index+3);
-    }else if(a->fuelLvl <= 0){
+    }else if(a->fuelLvl<=0){
         a->status = crashed;
         printf("\033[%d;105H            \033[%d;120Hcrashed            ",a->index+3,a->index+3);
     }

@@ -13,6 +13,7 @@ typedef struct c{
     char* nom;
     int lattitude;
     int longitude;
+    int index;
 }coordonnes;
 
 typedef struct a{
@@ -28,6 +29,7 @@ typedef struct a{
     int status;
     int distance;
     int fuelLvl;
+    bool incremented;
 }Avion;
 
 typedef struct p{

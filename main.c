@@ -19,24 +19,27 @@
 pthread_cond_t Occupation_Grande_Piste[nbAeroports];
 pthread_cond_t Occupation_Petite_Piste[nbAeroports];
 
-int nbGAvionsPrioritaires[nbAeroports] = 0;
-int nbSAvionsPrioritaires[nbAeroports] = 0;
-int nbGAvionsAttente[nbAeroports] = 0;
-int nbGAvionsDecollage[nbAeroports] = 0;
-int nbSAvionsAttente[nbAeroports] = 0;
+int nbGAvionsPrioritaires[nbAeroports] = {0,0,0,0,0,0,0,0,0,0};
+int nbSAvionsPrioritaires[nbAeroports] = {0,0,0,0,0,0,0,0,0,0};
+int nbGAvionsAttente[nbAeroports] = {0,0,0,0,0,0,0,0,0,0};
+int nbGAvionsDecollage[nbAeroports] = {0,0,0,0,0,0,0,0,0,0};
+int nbSAvionsAttente[nbAeroports] = {0,0,0,0,0,0,0,0,0,0};
+
+coordonnes coords[nbAeroports] = {{"Paris",4800,200,0},{"Marseille",4300,500,1},{"Nice",4300,700,2},{"Lyon",4500,500,3},{"Toulouse",4300,100,4},{"Bordeaux",4400,-100,5},{"Strasbourg",4800,700,6},{"Brest",4800,-400,7},{"Metz",4900,600,8},{"La Rochelle",4600,-100,9}};
+
 int avionIndex = 0;
 
 pthread_mutex_t mutex[nbAeroports] = PTHREAD_MUTEX_INITIALIZER;
 
 Avion avions[nbMaxAvion];
-Piste pistes[nbPistes];
+Piste pistes[nbPistes][nbAeroports];
 
 int accordAtterissage(Avion *avion){
 
     //Demande de l'accord d'atterissage
 
     //On lock le mutex
-    pthread_mutex_lock(&mutex);
+    pthread_mutex_lock(&mutex[avion->Arrivee.index]);
 
     //printf("Demande d'atterissage de l'Avion n° %d\n",avion->numero);
     //fflush(stdout);
@@ -45,39 +48,40 @@ int accordAtterissage(Avion *avion){
     struct timespec ts;
 
     //Différenciation entre Grande et Petite piste
-
+    //printf("%d;%d;%d;%d",nbGAvionsPrioritaires[avion->Arrivee.index],nbSAvionsPrioritaires[avion->Arrivee.index],nbGAvionsAttente[avion->Arrivee.index],nbSAvionsAttente[avion->Arrivee.index]);
     if (avion->gabarits == Grand){
         //Si la piste n'est pas libre...
-        if (!pistes[0].disponible ){
+        if (!pistes[0][avion->Arrivee.index].disponible ){
             //printf("Grande piste indisponible\n");
             //fflush(stdout);
             //On met le thread en attente
             do {
                 clock_gettime(CLOCK_REALTIME, &ts);
                 ts.tv_sec += 1;
-                res = pthread_cond_timedwait(&Occupation_Grande_Piste, &mutex, &ts);
+                res = pthread_cond_timedwait(&Occupation_Grande_Piste[avion->Arrivee.index], &mutex[avion->Arrivee.index], &ts);
                 computeFuel(avion);
-            } while (res == ETIMEDOUT && (avion->kerosene != Urgent || !avion->probTechnique) && !pistes[0].disponible);
-            if(avion->kerosene == Urgent){
-                ++nbGAvionsPrioritaires;
+            } while (res == ETIMEDOUT && (avion->kerosene != Urgent || !avion->probTechnique) && !pistes[0][avion->Arrivee.index].disponible);
+            if(avion->kerosene == Urgent && avion->probTechnique == false && !avion->incremented){
+                ++nbGAvionsPrioritaires[avion->Arrivee.index];
+                avion->incremented = true;
             }
         }
         //S'il y a de Grands avions prioritaires et que l'avion n'a pas de pb
         //printf("%d",nbGAvionsPrioritaires);
-        if(nbGAvionsPrioritaires > 0 && avion->probTechnique == false && avion->kerosene != Urgent){
+        if(nbGAvionsPrioritaires[avion->Arrivee.index] > 0 && avion->probTechnique == false && avion->kerosene != Urgent){
             //printf("Grande piste indisponible\n");
             //fflush(stdout);
             //On met le thread en attente
             do {
                 clock_gettime(CLOCK_REALTIME, &ts);
                 ts.tv_sec += 1;
-                res = pthread_cond_timedwait(&Occupation_Grande_Piste, &mutex, &ts);
+                res = pthread_cond_timedwait(&Occupation_Grande_Piste[avion->Arrivee.index], &mutex[avion->Arrivee.index], &ts);
                 computeFuel(avion);
             } while (res == ETIMEDOUT && avion->status != crashed);
             if(avion->status == crashed){
-                --nbGAvionsPrioritaires;
-                --nbGAvionsAttente;
-                pthread_mutex_unlock(&mutex);
+                --nbGAvionsPrioritaires[avion->Arrivee.index];
+                --nbGAvionsAttente[avion->Arrivee.index];
+                pthread_mutex_unlock(&mutex[avion->Arrivee.index]);
                 return 10;
             }
         }
@@ -86,51 +90,52 @@ int accordAtterissage(Avion *avion){
         printf("\033[%d;62HAtterissage\033[%d;95HGrande",avion->index+3,avion->index+3);
         fflush(stdout);
         //La piste est indisponible
-        pistes[0].disponible = false;
+        pistes[0][avion->Arrivee.index].disponible = false;
         //displayPistes(pistes);
         numPiste = 1;
     }else{
         //Si l'avion est petit et qu'aucunes des pistes n'est disponible
-        if ((pistes[0].disponible == false || nbGAvionsPrioritaires > 0 ) && pistes[1].disponible == false) {
+        if ((pistes[0][avion->Arrivee.index].disponible == false || nbGAvionsPrioritaires[avion->Arrivee.index] > 0 ) && pistes[1][avion->Arrivee.index].disponible == false) {
             //printf("Aucunes pistes disponibles pour l'avion n° %d\n", avion->numero);
             //fflush(stdout);
             //On met le thread en attente
             do {
                 clock_gettime(CLOCK_REALTIME, &ts);
                 ts.tv_sec += 1;
-                res = pthread_cond_timedwait(&Occupation_Petite_Piste, &mutex, &ts);
+                res = pthread_cond_timedwait(&Occupation_Petite_Piste[avion->Arrivee.index], &mutex[avion->Arrivee.index], &ts);
                 computeFuel(avion);
-            } while (res == ETIMEDOUT && (avion->kerosene != Urgent || !avion->probTechnique) && (!pistes[0].disponible || !pistes[1].disponible));
-            if(avion->kerosene == Urgent){
-                ++nbSAvionsPrioritaires;
+            } while (res == ETIMEDOUT && (avion->kerosene != Urgent || !avion->probTechnique) && (!pistes[0][avion->Arrivee.index].disponible || !pistes[1][avion->Arrivee.index].disponible));
+            if(avion->kerosene == Urgent && avion->probTechnique == false && !avion->incremented){
+                ++nbSAvionsPrioritaires[avion->Arrivee.index];
+                avion->incremented = true;
             }
         }
         //S'il y a de petits avions prioritaires et que l'avion n'a pas de pb...
         //printf("%d",nbSAvionsPrioritaires);
-        if (nbSAvionsPrioritaires > 0 && avion->probTechnique == false && avion->kerosene != Urgent){
+        if (nbSAvionsPrioritaires[avion->Arrivee.index] > 0 && avion->probTechnique == false && avion->kerosene != Urgent){
             //printf("Aucunes pistes disponibles pour l'avion n° %d\n", avion->numero);
             //fflush(stdout);
             //On met le thread en attente
             do {
                 clock_gettime(CLOCK_REALTIME, &ts);
                 ts.tv_sec += 1;
-                res = pthread_cond_timedwait(&Occupation_Petite_Piste, &mutex, &ts);
+                res = pthread_cond_timedwait(&Occupation_Petite_Piste[avion->Arrivee.index], &mutex[avion->Arrivee.index], &ts);
                 computeFuel(avion);
             } while (res == ETIMEDOUT && avion->status != crashed);
             if(avion->status == crashed){
-                --nbSAvionsPrioritaires;
-                --nbSAvionsAttente;
-                pthread_mutex_unlock(&mutex);
+                --nbSAvionsPrioritaires[avion->Arrivee.index];
+                --nbSAvionsAttente[avion->Arrivee.index];
+                pthread_mutex_unlock(&mutex[avion->Arrivee.index]);
                 return 10;
             }
         }
         //Si la petite piste est libre
-        if (pistes[1].disponible == true){
+        if (pistes[1][avion->Arrivee.index].disponible == true){
             //printf("Atterissage de l'avion n° %d sur la petite piste\n",avion->numero);
             printf("\033[%d;62HAtterissage\033[%d;95HPetite",avion->index+3,avion->index+3);
             fflush(stdout);
             //On place la petite piste en indisponible
-            pistes[1].disponible = false;
+            pistes[1][avion->Arrivee.index].disponible = false;
             //displayPistes(pistes);
             numPiste = 2;
         }else{
@@ -138,75 +143,79 @@ int accordAtterissage(Avion *avion){
             //printf("Atterissage de l'avion n° %d sur la grande piste\n",avion->numero);
             printf("\033[%d;62HAtterissage\033[%d;95HGrande",avion->index+3,avion->index+3);
             fflush(stdout);
-            pistes[0].disponible = false;
+            pistes[0][avion->Arrivee.index].disponible = false;
             //displayPistes(pistes);
             numPiste = 1;
         }
     }
 
     //On unlock le mutex
-    pthread_mutex_unlock(&mutex);
+    pthread_mutex_unlock(&mutex[avion->Arrivee.index]);
     return numPiste;
 }
 
 void Decollage(Avion *avion,int numPiste){
     //On lock le mutex
-    pthread_mutex_lock(&mutex);
+    pthread_mutex_lock(&mutex[avion->Depart.index]);
     if (numPiste == 1){
         //Si la piste est la grande piste
         //printf("Décollage de l'avion n° %d sur grande piste effectué, piste libre\n",avion->numero);
-        printf("\033[%d;62HEn vol     \033[%d;82HArrivée\033[%d;95H                       \033[%d;120Hended              ",avion->index+3,avion->index+3,avion->index+3,avion->index+3);
+        printf("\033[%d;62HEn vol     \033[%d;82HArrivée\033[%d;95H          ",avion->index+3,avion->index+3,avion->index+3);
+        printf("\033[%d;120Hended               ",avion->index+3);
         fflush(stdout);
+        avion->status = ended;
         //La piste est mise disponible et on envoie un signal pour réveiller le thread
-        pistes[0].disponible = true;
+        pistes[0][avion->Depart.index].disponible = true;
         if(avion->gabarits == Grand){
-            --nbGAvionsDecollage;
+            --nbGAvionsDecollage[avion->Depart.index];
         }
         //displayPistes(pistes);
-        if (nbGAvionsDecollage > 0 || nbSAvionsPrioritaires > 0){
-             pthread_cond_signal(&Occupation_Grande_Piste);
+        if (nbGAvionsDecollage[avion->Depart.index] > 0 || nbSAvionsPrioritaires[avion->Arrivee.index] > 0){
+             pthread_cond_signal(&Occupation_Grande_Piste[avion->Depart.index]);
         }else{
-            pthread_cond_signal(&Occupation_Petite_Piste);
+            pthread_cond_signal(&Occupation_Petite_Piste[avion->Depart.index]);
         }
     }else{
         //Sinon la petite piste est mise disponible et on envoie un signal pour réveiller le thread
         //printf("Décollage de l'avion n° %d sur petite piste effectué, piste libre\n",avion->numero);
-        printf("\033[%d;62HEn vol     \033[%d;82HArrivée\033[%d;95H                        \033[%d;120Hended             ",avion->index+3,avion->index+3,avion->index+3,avion->index+3);
+        printf("\033[%d;62HEn vol     \033[%d;82HArrivée\033[%d;95H        ",avion->index+3,avion->index+3,avion->index+3);
+        printf("\033[%d;120Hended               ",avion->index+3);
         fflush(stdout);
-        pistes[1].disponible = true;
+        avion->status = ended;
+        pistes[1][avion->Depart.index].disponible = true;
         //displayPistes(pistes);
-        pthread_cond_signal(&Occupation_Petite_Piste);
+        pthread_cond_signal(&Occupation_Petite_Piste[avion->Depart.index]);
     }
     //On unlock le mutex
-    pthread_mutex_unlock(&mutex);
+    pthread_mutex_unlock(&mutex[avion->Depart.index]);
 }
 
 void libererPiste(Avion *avion,int numPiste){
-    pthread_mutex_lock(&mutex);
+    pthread_mutex_lock(&mutex[avion->Arrivee.index]);
     if (numPiste == 1){
         //Si la piste est la grande piste
         //printf("Décollage de l'avion n° %d sur grande piste effectué, piste libre\n",avion->numero);
         printf("\033[%d;62HA quai      \033[%d;82HDépart  \033[%d;95H                    \033[%d;120H                    ",avion->index+3,avion->index+3,avion->index+3,avion->index+3);
         fflush(stdout);
         //La piste est mise disponible et on envoie un signal pour réveiller le thread
-        pistes[0].disponible = true;
+        pistes[0][avion->Arrivee.index].disponible = true;
         //displayPistes(pistes);
         if (avion->gabarits == Grand){
             if(avion->kerosene == Urgent){
-                --nbGAvionsPrioritaires;
+                --nbGAvionsPrioritaires[avion->Arrivee.index];
             }
-            --nbGAvionsAttente;
-            if(nbGAvionsAttente > 0 || nbGAvionsPrioritaires > 0 || nbSAvionsPrioritaires > 0){
-                pthread_cond_signal(&Occupation_Grande_Piste);
+            --nbGAvionsAttente[avion->Arrivee.index];
+            if(nbGAvionsAttente[avion->Arrivee.index] > 0 || nbGAvionsPrioritaires[avion->Arrivee.index] > 0 || nbSAvionsPrioritaires[avion->Arrivee.index] > 0){
+                pthread_cond_signal(&Occupation_Grande_Piste[avion->Arrivee.index]);
             }else{
-                pthread_cond_signal(&Occupation_Petite_Piste);
+                pthread_cond_signal(&Occupation_Petite_Piste[avion->Arrivee.index]);
             }
         }else{
             if(avion->kerosene == Urgent){
-                --nbSAvionsPrioritaires;
+                --nbSAvionsPrioritaires[avion->Arrivee.index];
             }
-            --nbSAvionsAttente;
-            pthread_cond_signal(&Occupation_Petite_Piste);
+            --nbSAvionsAttente[avion->Arrivee.index];
+            pthread_cond_signal(&Occupation_Petite_Piste[avion->Arrivee.index]);
         }
 
     }else{
@@ -214,69 +223,75 @@ void libererPiste(Avion *avion,int numPiste){
         //printf("Décollage de l'avion n° %d sur petite piste effectué, piste libre\n",avion->numero);
         printf("\033[%d;62HA quai      \033[%d;82HDépart  \033[%d;95H                    \033[%d;120H                    ",avion->index+3,avion->index+3,avion->index+3,avion->index+3);
         fflush(stdout);
-        pistes[1].disponible = true;
+        pistes[1][avion->Arrivee.index].disponible = true;
         //displayPistes(pistes);
-        --nbSAvionsAttente;
-        pthread_cond_signal(&Occupation_Petite_Piste);
+        --nbSAvionsAttente[avion->Arrivee.index];
+        pthread_cond_signal(&Occupation_Petite_Piste[avion->Arrivee.index]);
     }
     //On unlock le mutex
-    pthread_mutex_unlock(&mutex);
+    //printf("%d;%d;%d;%d",nbGAvionsPrioritaires[avion->Arrivee.index],nbSAvionsPrioritaires[avion->Arrivee.index],nbGAvionsAttente[avion->Arrivee.index],nbSAvionsAttente[avion->Arrivee.index]);
+    pthread_mutex_unlock(&mutex[avion->Arrivee.index]);
 }
 
 void RamenerHangar(Avion *avion,int numPiste){
     //On lock le mutex
-    pthread_mutex_lock(&mutex);
+    pthread_mutex_lock(&mutex[avion->Arrivee.index]);
     // Si la piste est la grande piste
     if (numPiste == 1){
         if(avion->probTechnique || avion->kerosene == Urgent){
             if(avion->gabarits == Grand){
                 //Si l'avion a un pb technique on diminue le nombre de grands avions avec un pb
-                --nbGAvionsPrioritaires;
+                --nbGAvionsPrioritaires[avion->Arrivee.index];
             }else{
-                --nbSAvionsPrioritaires;
+                --nbSAvionsPrioritaires[avion->Arrivee.index];
             }
         }
         //printf("L'avion n° %d a été ramené au hangar, la grande piste est libre\n",avion->numero);
-        printf("\033[%d;62HMise hangar\033[%d;82H           \033[%d;95H                    \033[%d;120Hended               ",avion->index+3,avion->index+3,avion->index+3,avion->index+3);
+        printf("\033[%d;62HMise hangar\033[%d;82H           \033[%d;95H                    ",avion->index+3,avion->index+3,avion->index+3);
+        fflush(stdout);
+        printf("\033[%d;120Hended               ",avion->index+3);
         fflush(stdout);
         //On met a piste en disponible et on réveil le thread
-        pistes[0].disponible = true;
+        pistes[0][avion->Arrivee.index].disponible = true;
         avion->status = ended;
         //displayPistes(pistes);
         if (avion->gabarits == Grand){
-            --nbGAvionsAttente;
-            if(nbGAvionsAttente > 0 || nbGAvionsPrioritaires > 0 || nbSAvionsPrioritaires > 0){
-                pthread_cond_signal(&Occupation_Grande_Piste);
+            --nbGAvionsAttente[avion->Arrivee.index];
+            if(nbGAvionsAttente[avion->Arrivee.index] > 0 || nbGAvionsPrioritaires[avion->Arrivee.index] > 0 || nbSAvionsPrioritaires[avion->Arrivee.index] > 0){
+                pthread_cond_signal(&Occupation_Grande_Piste[avion->Arrivee.index]);
             }else{
-                pthread_cond_signal(&Occupation_Petite_Piste);
+                pthread_cond_signal(&Occupation_Petite_Piste[avion->Arrivee.index]);
             }
         }else{
-            --nbSAvionsAttente;
-            pthread_cond_signal(&Occupation_Petite_Piste);
+            --nbSAvionsAttente[avion->Arrivee.index];
+            pthread_cond_signal(&Occupation_Petite_Piste[avion->Arrivee.index]);
         }
     }else{
         //Sinon si l'avion a un pb technique on diminue le nombre d'avion avec un pb de type standard
         if(avion->probTechnique || avion->kerosene == Urgent){
-            --nbSAvionsPrioritaires;
+            --nbSAvionsPrioritaires[avion->Arrivee.index];
         }
         //printf("L'avion n° %d a été ramené au hangar, la grande piste est libre\n",avion->numero);
-        printf("\033[%d;62HMise hangar\033[%d;82H            \033[%d;95H                   \033[%d;120Hended               ",avion->index+3,avion->index+3,avion->index+3,avion->index+3);
+        printf("\033[%d;62HMise hangar\033[%d;82H            \033[%d;95H                   ",avion->index+3,avion->index+3,avion->index+3);
+        fflush(stdout);
+        printf("\033[%d;120Hended               ",avion->index+3);
         fflush(stdout);
         //On met a piste en disponible et on réveil le thread
-        pistes[1].disponible = true;
+        pistes[1][avion->Arrivee.index].disponible = true;
         avion->status = ended;
         //displayPistes(pistes);
-        --nbSAvionsAttente;
-        pthread_cond_signal(&Occupation_Petite_Piste);
+        --nbSAvionsAttente[avion->Arrivee.index];
+        pthread_cond_signal(&Occupation_Petite_Piste[avion->Arrivee.index]);
 
     }
     //On unlock le mutex
-    pthread_mutex_unlock(&mutex);
+    //printf("%d;%d;%d;%d",nbGAvionsPrioritaires[avion->Arrivee.index],nbSAvionsPrioritaires[avion->Arrivee.index],nbGAvionsAttente[avion->Arrivee.index],nbSAvionsAttente[avion->Arrivee.index]);
+    pthread_mutex_unlock(&mutex[avion->Arrivee.index]);
 }
 
 int accordDecollage(Avion *avion){
     //On lock le mutex
-    pthread_mutex_lock(&mutex);
+    pthread_mutex_lock(&mutex[avion->Depart.index]);
     //printf("Demande de décollage de l'Avion n° %d\n",avion->numero);
     //fflush(stdout);
     int numPiste;
@@ -285,55 +300,55 @@ int accordDecollage(Avion *avion){
     if (avion->gabarits == Grand){
 
         //Si la piste n'est pas disponible ou qu'il y de grands avions priritaires
-        if (!pistes[0].disponible){
+        if (!pistes[0][avion->Depart.index].disponible){
             //printf("Grande piste indisponible\n");
             //fflush(stdout);
             //On met ke thread en attente
-            pthread_cond_wait(&Occupation_Grande_Piste,&mutex);
+            pthread_cond_wait(&Occupation_Grande_Piste[avion->Depart.index],&mutex[avion->Depart.index]);
         }
-        if(nbGAvionsPrioritaires > 0 || nbGAvionsAttente > 0){
-            pthread_cond_wait(&Occupation_Grande_Piste,&mutex);
+        if(nbGAvionsPrioritaires[avion->Depart.index] > 0 || nbGAvionsAttente[avion->Depart.index] > 0){
+            pthread_cond_wait(&Occupation_Grande_Piste[avion->Depart.index],&mutex[avion->Depart.index]);
         }
         //printf("Décollage de l'avion n° %d sur la grande piste\n", avion->numero);
-        printf("\033[%d;62HDécollage\033[%d;82HDépart\033[%d;95HGrande",avion->index+3,avion->index+3,avion->index+3);
+        printf("\033[%d;62HDécollage\033[%d;82HDépart \033[%d;95HGrande",avion->index+3,avion->index+3,avion->index+3);
         fflush(stdout);
         //Sinon on met la piste en indisponible
-        pistes[0].disponible = false;
+        pistes[0][avion->Depart.index].disponible = false;
         //displayPistes(pistes);
         numPiste = 1;
     }else{
 
         //Sinon si aucunes pistes sont disponibles ou que des avions standards ont un pb
-        if ((!pistes[0].disponible || nbGAvionsDecollage > 0) && !pistes[1].disponible) {
+        if ((!pistes[0][avion->Depart.index].disponible || nbGAvionsDecollage[avion->Depart.index] > 0) && !pistes[1][avion->Depart.index].disponible) {
             //printf("Aucunes pistes disponibles pour l'avion n° %d\n", avion->numero);
             //fflush(stdout);
             //On met le thread en attente
-            pthread_cond_wait(&Occupation_Petite_Piste, &mutex);
+            pthread_cond_wait(&Occupation_Petite_Piste[avion->Depart.index], &mutex[avion->Depart.index]);
         }
-        if(nbSAvionsPrioritaires > 0 ){
-            pthread_cond_wait(&Occupation_Petite_Piste, &mutex);
+        if(nbSAvionsPrioritaires[avion->Depart.index] > 0 ){
+            pthread_cond_wait(&Occupation_Petite_Piste[avion->Depart.index], &mutex[avion->Depart.index]);
         }
-        if (pistes[1].disponible){
+        if (pistes[1][avion->Depart.index].disponible){
             //Si la petite piste est disponible
             //printf("Décollage de l'avion n° %d sur la petite piste\n",avion->numero);
-            printf("\033[%d;62HDécollage\033[%d;82HDépart\033[%d;95HPetite",avion->index+3,avion->index+3,avion->index+3);
+            printf("\033[%d;62HDécollage\033[%d;82HDépart \033[%d;95HPetite",avion->index+3,avion->index+3,avion->index+3);
             fflush(stdout);
             //On la rend indisponible
-            pistes[1].disponible = false;
+            pistes[1][avion->Depart.index].disponible = false;
             //displayPistes(pistes);
             numPiste = 2;
         }else{
             //Sinon on rend la grande piste indisponible
             //printf("Décollage de l'avion n° %d sur la grande piste\n",avion->numero);
-            printf("\033[%d;62HDécollage\033[%d;82HDépart\033[%d;95HGrande",avion->index+3,avion->index+3,avion->index+3);
+            printf("\033[%d;62HDécollage\033[%d;82HDépart \033[%d;95HGrande",avion->index+3,avion->index+3,avion->index+3);
             fflush(stdout);
-            pistes[0].disponible = false;
+            pistes[0][avion->Depart.index].disponible = false;
             //displayPistes(pistes);
             numPiste = 1;
         }
     }
     //On unlock le mutex
-    pthread_mutex_unlock(&mutex);
+    pthread_mutex_unlock(&mutex[avion->Depart.index]);
     return numPiste;
 }
 
@@ -345,40 +360,50 @@ void *threadAvion(void *args){
     //On l'affiche
     displayAvion(avion);
     ++avionIndex;
-
     //Si l'avion demande a atterir
     if (avion->typeDemande == demandeAtterissage){
         int temp = avion->distance;
-        while(temp > 10){
+        while(temp > 10 && avion->status != crashed){
             sleep(1);
             temp -=10;
-            printf("\033[%d;135H%d                   ",avion->index+3,temp);
+            printf("\033[%d;135H%d   ",avion->index+3,temp);
             computeFuel(avion);
-            if(avion->kerosene == Urgent && avion->gabarits == Grand){
-                ++nbGAvionsPrioritaires;
-            }else if(avion->kerosene == Urgent && (avion->gabarits == Moyen || avion->gabarits == Petit)){
-                ++nbSAvionsPrioritaires;
-            }
         }
-        if (avion->gabarits == Grand){
-            ++nbGAvionsAttente;
+        if(avion->status == crashed){
+            return NULL;
+        }
+        if(avion->kerosene == Urgent && avion->gabarits == Grand){
+            ++nbGAvionsPrioritaires[avion->Arrivee.index];
+            avion->incremented = true;
+        }else if(avion->kerosene == Urgent && (avion->gabarits == Moyen || avion->gabarits == Petit)){
+            ++nbSAvionsPrioritaires[avion->Arrivee.index];
+            avion->incremented = true;
+        }
+        if(avion->gabarits == Grand){
+            ++nbGAvionsAttente[avion->Arrivee.index];
         }else{
-            ++nbSAvionsAttente;
+            ++nbSAvionsAttente[avion->Arrivee.index];
         }
 
         //On lui accorde l'atterissage
         int numPiste = accordAtterissage(avion);
+        sleep(5);
         //Si l'avion a finit sont trajet il retourne au hangar
         if(numPiste != 10) {
             if (avion->typeArrivee == hangar) {
-                sleep(5);
                 RamenerHangar(avion, numPiste);
             } else {
                 if (avion->gabarits == Grand) {
-                    ++nbGAvionsDecollage;
+                    ++nbGAvionsDecollage[avion->Depart.index];
                 }
-                sleep(5);
                 libererPiste(avion, numPiste);
+                avion->Depart = coords[avion->Arrivee.index];
+                int villeArrivee = rand()%(nbAeroports-1);
+                if(villeArrivee == avion->Arrivee.index){
+                    ++villeArrivee;
+                }
+                avion->Arrivee = coords[villeArrivee];
+                printf("\033[%d;35H%s          \033[%d;50H%s         \033[%d;62HA quai      ",avion->index+3,avion->Depart.nom,avion->index+3,avion->Arrivee.nom,avion->index+3);
                 sleep(10);
                 numPiste = accordDecollage(avion);
                 sleep(10);
@@ -388,7 +413,7 @@ void *threadAvion(void *args){
     }else{
         //Sinon on lui accorde le décollage
         if (avion->gabarits == Grand){
-            ++nbGAvionsDecollage;
+            ++nbGAvionsDecollage[avion->Depart.index];
         }
         sleep(5);
         int numPiste = accordDecollage(avion);
@@ -398,8 +423,12 @@ void *threadAvion(void *args){
     }
     sleep(2);
 
+    for (int i = 0; i < nbAeroports; ++i) {
+        printf("\033[%d;5H%d;%d;%d;%d",25+i,nbGAvionsPrioritaires[i],nbSAvionsPrioritaires[i],nbGAvionsAttente[i],nbSAvionsAttente[i]);
+    }
+
     return NULL;
-};
+}
 
 void erreur (const char *msg)
 {
@@ -416,19 +445,20 @@ void problemeMoteur(int num){
     do{
         rndIndex = rand()%nbMaxAvion;
         //On vérifie que l'avion demande bien un atterissage
-    }while(avions[rndIndex].typeDemande != demandeAtterissage && (avions[rndIndex].status == ended || avions[rndIndex].status == crashed));
+    }while(avions[rndIndex].typeDemande != demandeAtterissage && avions[rndIndex].status != inprogress);
+    printf("%d,%d",avions[rndIndex].typeDemande != demandeAtterissage,avions[rndIndex].status != inprogress);
     //On affiche et modifie les valeurs
     avions[rndIndex].probTechnique = true;
     avions[rndIndex].typeArrivee = hangar;
     printf("\033[%d;120HPb Technique",avions[rndIndex].index+3);
     fflush(stdout);
     //Si l'avion est grand, on augmente le nombre de grands avions avec un pb
-    if(avions[rndIndex].gabarits == Grand){
-        ++nbGAvionsPrioritaires;
+    if(avions[rndIndex].gabarits == Grand && !avions[rndIndex].incremented){
+        ++nbGAvionsPrioritaires[avions[rndIndex].Arrivee.index];
         //printf("%d",nbGAvionsPrioritaires);
-    }else{
+    }else if(!avions[rndIndex].incremented){
         //Sinon on augmente celui des petits avions
-        ++nbSAvionsPrioritaires;
+        ++nbSAvionsPrioritaires[avions[rndIndex].Arrivee.index];
         //printf("%d",nbSAvionsPrioritaires);
     }
 }
@@ -440,15 +470,17 @@ int main(){
     //printf("\nBienvenue dans le système de gestion de fret de l'aéroport\n\n");
     //On init les pistes et les avions
     initPistes(pistes);
-    initAvion(avions);
+    initAvion(avions,coords);
     setTerminal();
+    sleep(2);
     //displayPistes(pistes);
-
     pthread_t avion[nbMaxAvion];
 
     //On init les conditions
-    pthread_cond_init(&Occupation_Petite_Piste,0);
-    pthread_cond_init(&Occupation_Grande_Piste,0);
+    for (int k = 0; k < nbAeroports; ++k) {
+        pthread_cond_init(&Occupation_Petite_Piste[k],0);
+        pthread_cond_init(&Occupation_Grande_Piste[k],0);
+    }
 
     struct sigaction action;
     action.sa_handler = problemeMoteur;
