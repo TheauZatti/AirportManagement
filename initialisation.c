@@ -24,6 +24,7 @@ void initAvion(Avion *a,coordonnes coords[]){
         a[i].index = i;
         a[i].incremented = false;
         a[i].status = inprogress;
+        a[i].tempDist = 0;
         //Choix aléatoire du gabarits de l'avion
 
         int x = rand()%3;

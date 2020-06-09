@@ -14,5 +14,6 @@ void displayPistes(Piste*);
 void displayAvion(Avion*);
 void setTerminal();
 void computeFuel(Avion*);
+void getCloser(Avion*,coordonnes*);
 
 #endif //PROJET_FONCTIONS_H

@@ -30,6 +30,7 @@ typedef struct a{
     int distance;
     int fuelLvl;
     bool incremented;
+    int tempDist;
 }Avion;
 
 typedef struct p{
