@@ -12,7 +12,7 @@ This C program is a school project. Its purpose is to control the arrival and de
   - GNOME Version 3.36.1
   - Virtualisation Oracle
   
-In order to run the program please run in your terminal the included makefile.
+In order to run the program please run in your terminal the included makefile (Terminal size min : 150x39).
 
 Enjoy !
 
@@ -27,6 +27,6 @@ Ce programme C est un projet. Son but est de pouvoir controller l'arrivée et le
   - GNOME Version 3.36.1
   - Virtualisation Oracle
   
-Pour executer ce programme, merci d'executer le Makefile inclue dans le projet.
+Pour executer ce programme, merci d'executer le Makefile inclue dans le projet (Taille du terminal minimum : 150x39).
 
 Enjoy !
