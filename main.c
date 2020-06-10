@@ -51,7 +51,7 @@ int accordAtterissage(Avion *avion){
     //printf("%d;%d;%d;%d",nbGAvionsPrioritaires[avion->Arrivee.index],nbSAvionsPrioritaires[avion->Arrivee.index],nbGAvionsAttente[avion->Arrivee.index],nbSAvionsAttente[avion->Arrivee.index]);
     if (avion->gabarits == Grand){
         //Si la piste n'est pas libre...
-        if (!pistes[0][avion->Arrivee.index].disponible ){
+        if (!pistes[0][avion->Arrivee.index].disponible){
             //printf("Grande piste indisponible\n");
             //fflush(stdout);
             //On met le thread en attente avec une durée
@@ -215,6 +215,7 @@ void libererPiste(Avion *avion,int numPiste){
         fflush(stdout);
         //La piste est mise disponible et on envoie un signal pour réveiller le thread
         pistes[0][avion->Arrivee.index].disponible = true;
+        avion->typeDemande = demandeDecollage;
         //displayPistes(pistes);
         if (avion->gabarits == Grand){
             //Si l'avion était en urgence on décremente
@@ -242,6 +243,7 @@ void libererPiste(Avion *avion,int numPiste){
         printf("\033[%d;62HA quai      \033[%d;82HDépart  \033[%d;95H                    \033[%d;120H                    ",avion->index+3,avion->index+3,avion->index+3,avion->index+3);
         printf("\033[%d;5H",nbMaxAvion+5);
         fflush(stdout);
+        avion->typeDemande = demandeDecollage;
         pistes[1][avion->Arrivee.index].disponible = true;
         //displayPistes(pistes);
         --nbSAvionsAttente[avion->Arrivee.index];
@@ -276,7 +278,7 @@ void RamenerHangar(Avion *avion,int numPiste){
         //displayPistes(pistes);
         if (avion->gabarits == Grand){
             --nbGAvionsAttente[avion->Arrivee.index];
-            if(nbGAvionsAttente[avion->Arrivee.index] > 0 || nbGAvionsPrioritaires[avion->Arrivee.index] > 0 || nbSAvionsPrioritaires[avion->Arrivee.index] > 0){
+            if(nbGAvionsAttente[avion->Arrivee.index] > 0 || nbGAvionsPrioritaires[avion->Arrivee.index] > 0 || nbSAvionsPrioritaires[avion->Arrivee.index] > 0 || nbGAvionsDecollage[avion->Arrivee.index] > 0){
                 pthread_cond_signal(&Occupation_Grande_Piste[avion->Arrivee.index]);
             }else{
                 pthread_cond_signal(&Occupation_Petite_Piste[avion->Arrivee.index]);
@@ -400,10 +402,10 @@ void *threadAvion(void *args){
             return NULL;
         }
         //Si l'avion est en urgence on incrémente les avions prioritaires
-        if(avion->kerosene == Urgent && avion->gabarits == Grand){
+        if(avion->kerosene == Urgent && avion->gabarits == Grand && !avion->incremented){
             ++nbGAvionsPrioritaires[avion->Arrivee.index];
             avion->incremented = true;
-        }else if(avion->kerosene == Urgent && (avion->gabarits == Moyen || avion->gabarits == Petit)){
+        }else if(avion->kerosene == Urgent && (avion->gabarits == Moyen || avion->gabarits == Petit) && !avion->incremented){
             ++nbSAvionsPrioritaires[avion->Arrivee.index];
             avion->incremented = true;
         }
@@ -455,9 +457,9 @@ void *threadAvion(void *args){
     avion->status = ended;
     sleep(2);
 
-    for (int i = 0; i < nbAeroports; ++i) {
-        printf("\033[%d;5H%d;%d;%d;%d",27+i,nbGAvionsPrioritaires[i],nbSAvionsPrioritaires[i],nbGAvionsAttente[i],nbSAvionsAttente[i]);
-    }
+    //for (int i = 0; i < nbAeroports; ++i) {
+      //  printf("\033[%d;5H%d;%d;%d;%d",27+i,nbGAvionsPrioritaires[i],nbSAvionsPrioritaires[i],nbGAvionsAttente[i],nbSAvionsAttente[i]);
+    //}
 
     return NULL;
 }
@@ -489,10 +491,12 @@ void problemeMoteur(int num){
     //Si l'avion est grand, on augmente le nombre de grands avions avec un pb
     if(avions[rndIndex].gabarits == Grand && !avions[rndIndex].incremented){
         ++nbGAvionsPrioritaires[avions[rndIndex].Arrivee.index];
+        avions[rndIndex].incremented = true;
         //printf("%d",nbGAvionsPrioritaires);
     }else if(!avions[rndIndex].incremented){
         //Sinon on augmente celui des petits avions
         ++nbSAvionsPrioritaires[avions[rndIndex].Arrivee.index];
+        avions[rndIndex].incremented = true;
         //printf("%d",nbSAvionsPrioritaires);
     }
     avions[rndIndex].incremented = true;
